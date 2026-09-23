@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Character\Character;
+use App\Models\Gallery\GallerySubmission;
+use App\Models\News;
+use App\Models\Prompt\Prompt;
 use App\Models\SitePage;
+use App\Models\User\User;
 use App\Services\LinkService;
 use App\Services\UserService;
 use Auth;
@@ -11,7 +16,6 @@ use Config;
 use DB;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
-
 class HomeController extends Controller
 {
     /*
@@ -30,8 +34,30 @@ class HomeController extends Controller
      */
     public function getIndex()
     {
+        $about = SitePage::where('key', 'about')->first();
+
+        $featuredCharacter = Character::visible()->myo(0)->with(['image', 'user.rank', 'rarity'])
+            ->whereNotNull('character_image_id')->inRandomOrder()->first();
+        $newCharacters = Character::visible()->myo(0)->with(['image', 'user'])
+            ->whereNotNull('character_image_id')->orderBy('id', 'DESC')->take(4)->get();
+        $latestNews = News::visible()->orderBy('updated_at', 'DESC')->take(3)->get();
+        $activePrompts = Prompt::active()->with('category')->orderBy('end_at', 'ASC')->orderBy('id', 'DESC')->take(4)->get();
+        $recentGallery = GallerySubmission::visible(null)->accepted()->collaboratorApproved()
+            ->orderBy('id', 'DESC')->take(6)->get();
+
         return view('welcome', [
-            'about' => SitePage::where('key', 'about')->first(),
+            'about' => $about,
+            'featuredCharacter' => $featuredCharacter,
+            'newCharacters' => $newCharacters,
+            'latestNews' => $latestNews,
+            'activePrompts' => $activePrompts,
+            'recentGallery' => $recentGallery,
+            'landingStats' => [
+                'characters' => Character::visible()->myo(0)->count(),
+                'members' => User::visible()->count(),
+                'prompts' => Prompt::active()->count(),
+                'artworks' => GallerySubmission::visible(null)->accepted()->count(),
+            ],
         ]);
     }
 
